@@ -16,15 +16,20 @@ data Uniforms = Uniforms
   { uMVP :: UniformLocation (M44 GLfloat) } 
   deriving Data
 
-data World = World
-  { _wPlayer :: Pose GLfloat
-  , _wPlayerStart :: Pose GLfloat
-  , _wHandStart :: Maybe (V3 GLfloat) 
+data Drag = Drag 
+  { _drgPlayerStart :: Pose GLfloat
+  , _drgHandStart   :: V3 GLfloat
+  , _drgHandID      :: HandID 
   }
+makeLenses ''Drag
 
+data World = World
+  { _wldPlayer :: Pose GLfloat
+  , _wldDrag :: Maybe Drag
+  }
 makeLenses ''World
 
-newWorld = World newPose newPose Nothing
+newWorld = World newPose Nothing
 
 main :: IO ()
 main = do
@@ -59,22 +64,31 @@ main = do
     processEvents gpEvents (closeOnEscape gpWindow)
 
     (hands, handsType) <- getHands vrPal
-
-    forM_ (listToMaybe hands) $ \hand -> do
-      let currentTranslation = hand ^. hndMatrix . translation
-      currentPlayer <- use wPlayer
-      playerStart <- use wPlayerStart
-      use wHandStart >>= \case
-        Nothing -> when (hand ^. hndTrigger > 0.5) $ do
-          
-          wHandStart   ?= currentTranslation
-          wPlayerStart .= currentPlayer
-        Just handStart -> do
-          wPlayer . posPosition .= (playerStart ^. posPosition) + (handStart - currentTranslation)
-          when (hand ^. hndTrigger < 0.5) $
-            wHandStart .= Nothing
     
-    view <- viewMatrixFromPose <$> use wPlayer
+    forM_ hands $ \hand -> do
+      currentPlayer <- use wldPlayer
+      drag          <- use wldDrag
+      let handTranslation = hand ^. hndMatrix . translation
+          handIsDragging  = hand ^. hndTrigger > 0.5
+          handWasDragging = drag ^? traverse . drgHandID == Just (hand ^. hndID)
+
+      when (handWasDragging && not handIsDragging) $ 
+        wldDrag .= Nothing
+      when (handIsDragging && not handWasDragging) $
+        wldDrag ?= Drag
+          { _drgHandID = hand ^. hndID
+          , _drgHandStart = handTranslation
+          , _drgPlayerStart = currentPlayer
+          }
+
+      when handIsDragging $ do
+        mNewDrag <- use wldDrag
+        forM_ mNewDrag $ \newDrag -> do
+          let startPosition = newDrag ^. drgPlayerStart . posPosition
+              handStart = newDrag ^. drgHandStart
+          wldPlayer . posPosition .= startPosition + (handStart - handTranslation)
+    
+    view <- viewMatrixFromPose <$> use wldPlayer
     -- Draw the line
     renderWith vrPal view
       (glClear (GL_COLOR_BUFFER_BIT .|. GL_DEPTH_BUFFER_BIT)) 
