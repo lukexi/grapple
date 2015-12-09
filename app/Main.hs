@@ -60,7 +60,7 @@ main = do
                 z <- [-n..n]
                 ]
 
-  void . flip runStateT newWorld . whileWindow gpWindow $ do
+  void . flip runStateT newWorld . whileVR vrPal $ \headM44 hands -> do
     processEvents gpEvents (closeOnEscape gpWindow)
 
     (hands, handsType) <- getHands vrPal
@@ -88,9 +88,9 @@ main = do
               handStart = newDrag ^. drgHandStart
           wldPlayer . posPosition .= startPosition + (handStart - handTranslation)
     
-    view <- viewMatrixFromPose <$> use wldPlayer
+    player <- use wldPlayer
     -- Draw the line
-    renderWith vrPal view
+    renderWith vrPal player headM44
       (glClear (GL_COLOR_BUFFER_BIT .|. GL_DEPTH_BUFFER_BIT)) 
       $ \projection eyeView -> do
           let viewProj = projection !*! eyeView
