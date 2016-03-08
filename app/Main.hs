@@ -33,13 +33,13 @@ newWorld = World newPose Nothing
 
 main :: IO ()
 main = do
-  vrPal@VRPal{..} <- reacquire 0 $ initVRPal "Grapple" NoGCPerFrame [UseHydra]
+  vrPal@VRPal{..} <- reacquire 0 $ initVRPal "Grapple" NoGCPerFrame [UseHydra, UseOpenVR]
 
   shader       <- createShaderProgram "app/geo.vert" "app/geo.frag"
   useProgram shader
   Uniforms{..} <- acquireUniforms shader
 
-  icoGeo     <- icosahedronGeometry 0.5 3
+  icoGeo     <- icosahedronGeometry 0.5 2
   icoShape   <- makeShape icoGeo shader
 
   cubeGeo    <- cubeGeometry (V3 0.3 0.3 1) 1
@@ -51,7 +51,7 @@ main = do
   -- let view = viewMatrix (V3 0 0 5) (axisAngle (V3 0 1 0) 0)
 
 
-  let n = 40
+  let n = 20
       each x z = mkTransformation 
         (axisAngle (V3 1 1 0) 0) 
         (V3 x (-3) z)
